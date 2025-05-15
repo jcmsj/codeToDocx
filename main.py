@@ -46,7 +46,7 @@ def convert_to_docx(directory:str, output_file:str, languages:list[str], gitigno
     processed_files: dict[str,list[dict[str,str]]] = {language: [] for language in sorted_languages}
 
     # read the gitignore file residing in directory
-    ignore = [x.strip('\n')for x in open(f"{directory}/.gitignore", 'r') .readlines() if not x.startswith('#')]
+    ignore = [x.strip('\n')for x in open(f"{directory}/.gitignore", 'r', encoding='utf-8', errors='ignore') .readlines() if not x.startswith('#')]
     ignore = [x for x in ignore if x]
     print(f"Ignore: {ignore}")
     
@@ -56,11 +56,13 @@ def convert_to_docx(directory:str, output_file:str, languages:list[str], gitigno
                 if file.endswith(LANGUAGE[language]):
                     fullpath = os.path.join(root, file)
                     relativepath = fullpath[len(directory)+1:] # +1 to remove leading slash
+                    filename = os.path.basename(fullpath)
                     # skip file if in .gitignore file
                     if not any([relativepath.startswith(p) for p in ignore]):
                         processed_files[language].append({
                             'fullpath':fullpath,
                             'relativepath':relativepath,
+                            'filename':filename,
                         })
                     break
                 
@@ -73,15 +75,18 @@ def convert_to_docx(directory:str, output_file:str, languages:list[str], gitigno
     ```
     '''
     temp_md = final_output_name.replace('.docx', '.md')
-    with open(temp_md, 'w') as f:
+    with open(temp_md, 'w',encoding='utf-8') as f:
         for language, items in processed_files.items():
             for item in items:
-                with open(item['fullpath'], 'r') as file:
+                with open(item['fullpath'], 'r', encoding='utf-8', errors='ignore') as file:
                     code = file.read()
                     # Header
-                    f.write(f"## {item['relativepath']}\n")
-                    # codeblock
-                    f.write(f"```{language}\n{code}\n```\n")
+                    try:
+                        f.write(f"## {item['filename']}\n")
+                        # codeblock
+                        f.write(f"```{language}\n{code}\n```\n")
+                    except:
+                        continue
 
         pypandoc.convert_file(temp_md, 'docx', outputfile=final_output_name)
 
